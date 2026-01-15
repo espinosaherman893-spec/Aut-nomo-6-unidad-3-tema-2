@@ -9,9 +9,10 @@
 
 #include <iostream>
 #include <vector>
-#include <algorithm> 
-#include <numeric>  
+#include <algorithm>
+#include <numeric>
 #include <string>
+#include <limits> // para numeric_limits
 
 using namespace std;
 
@@ -31,11 +32,11 @@ void ordenarRegistros(vector<int>& p, vector<int>& m, vector<int>& c);
 void eliminarRegistro(vector<int>& p, vector<int>& m, vector<int>& c);
 
 // Funciones de Análisis y Estadística
-void analisisEstadistico(vector<int> datos, string nombre);
+void analisisEstadistico(const vector<int>& datos, string nombre);
 void analisisPersonalizado(const vector<int>& p, const vector<int>& m, const vector<int>& c);
-double calcularMedia(vector<int> datos);
+double calcularMedia(const vector<int>& datos);
 double calcularMediana(vector<int> datos);
-int calcularModa(vector<int> datos);
+int calcularModa(const vector<int>& datos);
 
 int main() {
     // Declaración de los 3 arreglos paralelos (Vectores)
@@ -57,7 +58,7 @@ int main() {
         cout << "8. Estadisticas (Media, Mediana, Moda)\n";
         cout << "9. Analisis Extra (Personalizado)\n";
         cout << "0. Salir\n";
-        
+
         op = leerEntero("Opcion: ", 0, 9);
 
         // Switch para manejar la navegación del menú interactivo
@@ -69,7 +70,7 @@ int main() {
             case 5: mostrarDatos(pasos, minutos, calorias); break;
             case 6: ordenarRegistros(pasos, minutos, calorias); break;
             case 7: eliminarRegistro(pasos, minutos, calorias); break;
-            case 8: 
+            case 8:
                 if(pasos.empty()) cout << "Lista vacia.\n";
                 else {
                     // Se reutiliza la función para cada arreglo individualmente
@@ -93,48 +94,60 @@ int main() {
 // Lee un entero y valida que esté entre min y max. Si falla, pide de nuevo.
 int leerEntero(string mensaje, int min, int max) {
     int valor;
-    cout << mensaje;
-    // cin >> valor devuelve false si el tipo de dato no coincide (ej. letras)
-    while (!(cin >> valor) || valor < min || valor > max) {
-        cout << "Dato invalido. Intente de nuevo (" << min << "-" << max << "): ";
-        cin.clear(); // Limpia el estado de error de cin
-        cin.ignore(1000, '\n'); // Descarta la entrada incorrecta del buffer
+    while (true) {
+        cout << mensaje;
+        if (cin >> valor) {
+            if (valor >= min && valor <= max) {
+                // Dejar el '\n' en el buffer para que pausar lo consuma de forma controlada
+                return valor;
+            }
+            cout << "Dato fuera de rango. Intente de nuevo (" << min << "-" << max << "): ";
+        } else {
+            cout << "Dato invalido. Intente de nuevo (" << min << "-" << max << "): ";
+            cin.clear(); // Limpia el estado de error de cin
+        }
+        // Descarta la línea completa para evitar bucles infinitos
+        cin.ignore(numeric_limits<streamsize>::max(), '\n');
     }
-    return valor;
 }
 
 void mostrarEncabezado() {
-    // Limpia pantalla (funciona en Windows, cambiar a "clear" en Linux/Mac)
-    system("cls"); 
+    // Limpia pantalla (compatible con Windows y Unix)
+    #ifdef _WIN32
+        system("cls");
+    #else
+        system("clear");
+    #endif
     cout << " SISTEMA DE SEGUIMIENTO DE ACTIVIDAD FISICA\n";
     cout << "-------------------------------------------\n";
 }
 
 void pausar() {
     cout << "\nPresione [Enter] para continuar...";
-    cin.ignore();
+    // Limpiamos hasta el fin de línea y luego esperamos la pulsación
+    cin.ignore(numeric_limits<streamsize>::max(), '\n');
     cin.get();
 }
 
 // Agrega un nuevo registro al final de los vectores (push_back)
 void ingresarDatos(vector<int>& p, vector<int>& m, vector<int>& c) {
     cout << "\n--- NUEVO REGISTRO ---\n";
-    p.push_back(leerEntero("Pasos (0-100k): ", 0, 100000));
+    p.push_back(leerEntero("Pasos (0-100000): ", 0, 100000));
     m.push_back(leerEntero("Minutos (0-1440): ", 0, 1440));
-    c.push_back(leerEntero("Calorias (0-10k): ", 0, 10000));
+    c.push_back(leerEntero("Calorias (0-10000): ", 0, 10000));
     cout << "Datos guardados exitosamente.\n";
 }
 
 // Inserta datos en una posición específica desplazando los demás elementos
 void insertarRegistro(vector<int>& p, vector<int>& m, vector<int>& c) {
-    if (p.empty()) { 
+    if (p.empty()) {
         cout << "La lista esta vacia, se agregara al inicio.\n";
-        ingresarDatos(p, m, c); 
-        return; 
+        ingresarDatos(p, m, c);
+        return;
     }
-    
-    int pos = leerEntero("Posicion donde insertar (0-" + to_string(p.size()) + "): ", 0, p.size());
-    
+
+    int pos = leerEntero("Posicion donde insertar (0-" + to_string(p.size()) + "): ", 0, static_cast<int>(p.size()));
+
     // insert() requiere un iterador, por eso sumamos pos a begin()
     p.insert(p.begin() + pos, leerEntero("Pasos: ", 0, 100000));
     m.insert(m.begin() + pos, leerEntero("Minutos: ", 0, 1440));
@@ -145,9 +158,9 @@ void insertarRegistro(vector<int>& p, vector<int>& m, vector<int>& c) {
 void modificarRegistro(vector<int>& p, vector<int>& m, vector<int>& c) {
     if (p.empty()) { cout << "No hay registros para modificar.\n"; return; }
     mostrarDatos(p, m, c);
-    
-    int i = leerEntero("Seleccione el Indice a editar: ", 0, p.size()-1);
-    
+
+    int i = leerEntero("Seleccione el Indice a editar: ", 0, static_cast<int>(p.size())-1);
+
     cout << "Editando registro del indice " << i << ":\n";
     // Acceso directo por índice para modificar
     p[i] = leerEntero("Nuevos Pasos: ", 0, 100000);
@@ -158,10 +171,14 @@ void modificarRegistro(vector<int>& p, vector<int>& m, vector<int>& c) {
 
 void buscarRegistro(const vector<int>& p, const vector<int>& m, const vector<int>& c) {
     if (p.empty()) { cout << "Lista vacia.\n"; return; }
-    
+
     cout << "Buscar por: 1.Pasos 2.Minutos 3.Calorias\n";
     int op = leerEntero("Opcion: ", 1, 3);
-    int busco = leerEntero("Valor a buscar: ", 0, 100000);
+    // Ajusto límite máximo razonable según el campo que busque
+    int maxBuscar = 100000;
+    if (op == 2) maxBuscar = 1440;
+    else if (op == 3) maxBuscar = 10000;
+    int busco = leerEntero("Valor a buscar: ", 0, maxBuscar);
     bool encontrado = false;
 
     // Recorrido lineal para encontrar coincidencias
@@ -170,9 +187,9 @@ void buscarRegistro(const vector<int>& p, const vector<int>& m, const vector<int
         if (op == 1 && p[i] == busco) match = true;
         else if (op == 2 && m[i] == busco) match = true;
         else if (op == 3 && c[i] == busco) match = true;
-        
+
         if (match) {
-            cout << "-> Encontrado en indice [" << i << "]: " 
+            cout << "-> Encontrado en indice [" << i << "]: "
                  << "Pasos:" << p[i] << " Min:" << m[i] << " Cal:" << c[i] << endl;
             encontrado = true;
         }
@@ -183,26 +200,26 @@ void buscarRegistro(const vector<int>& p, const vector<int>& m, const vector<int
 // Algoritmo de ordenamiento (Burbuja) aplicado a los 3 vectores simultáneamente
 void ordenarRegistros(vector<int>& p, vector<int>& m, vector<int>& c) {
     if (p.empty()) return;
-    
+
     cout << "Criterio de ordenacion: 1.Pasos 2.Minutos 3.Calorias\n";
     int crit = leerEntero("Opcion: ", 1, 3);
     cout << "Tipo: 1.Ascendente 2.Descendente\n";
     int tipo = leerEntero("Opcion: ", 1, 2);
-    
+
     // Bubble Sort: Compara elementos adyacentes y los intercambia si están en orden incorrecto
-    for (size_t i = 0; i < p.size() - 1; i++) {
-        for (size_t j = 0; j < p.size() - i - 1; j++) {
+    for (size_t i = 0; i + 1 < p.size(); i++) {
+        for (size_t j = 0; j + i + 1 < p.size(); j++) {
             bool cambio = false;
             int v1, v2;
-            
+
             // Determinar qué vector se usa para la comparación
             if (crit == 1) { v1 = p[j]; v2 = p[j+1]; }
             else if (crit == 2) { v1 = m[j]; v2 = m[j+1]; }
             else { v1 = c[j]; v2 = c[j+1]; }
-            
+
             // Determinar si se debe intercambiar según ascendente o descendente
             if ((tipo == 1 && v1 > v2) || (tipo == 2 && v1 < v2)) cambio = true;
-            
+
             if (cambio) {
                 // IMPORTANTE: Si se intercambia en uno, se intercambia en TODOS
                 // para mantener la integridad de los datos paralelos.
@@ -218,12 +235,12 @@ void ordenarRegistros(vector<int>& p, vector<int>& m, vector<int>& c) {
 
 void eliminarRegistro(vector<int>& p, vector<int>& m, vector<int>& c) {
     if (p.empty()) { cout << "Lista vacia.\n"; return; }
-    
+
     cout << "1.Eliminar por Posicion  2.Eliminar por Condicion (Pasos < X)\n";
     int op = leerEntero("Opcion: ", 1, 2);
-    
+
     if (op == 1) {
-        int pos = leerEntero("Posicion a eliminar: ", 0, p.size()-1);
+        int pos = leerEntero("Posicion a eliminar: ", 0, static_cast<int>(p.size())-1);
         // erase() elimina el elemento y reajusta el tamaño del vector
         p.erase(p.begin() + pos);
         m.erase(m.begin() + pos);
@@ -232,11 +249,9 @@ void eliminarRegistro(vector<int>& p, vector<int>& m, vector<int>& c) {
     } else {
         int limite = leerEntero("Eliminar todos los dias con PASOS menores a: ", 0, 100000);
         int eliminados = 0;
-        
-        // IMPORTANTE: Recorremos el vector HACIA ATRÁS (de final a inicio).
-        // Si recorriéramos hacia adelante, al borrar un elemento los índices cambiarían
-        // y saltaríamos elementos o causaríamos errores.
-        for (int i = p.size() - 1; i >= 0; i--) {
+
+        // Recorremos el vector HACIA ATRÁS (de final a inicio).
+        for (int i = static_cast<int>(p.size()) - 1; i >= 0; --i) {
             if (p[i] < limite) {
                 p.erase(p.begin() + i);
                 m.erase(m.begin() + i);
@@ -250,8 +265,8 @@ void eliminarRegistro(vector<int>& p, vector<int>& m, vector<int>& c) {
 
 void mostrarDatos(const vector<int>& p, const vector<int>& m, const vector<int>& c) {
     if (p.empty()) { cout << "Tabla vacia.\n"; return; }
-    cout << "\nIdx | Pasos  | Minutos | Calorias\n";
-    cout << "----------------------------------\n";
+    cout << "\nIdx |   Pasos   | Minutos | Calorias\n";
+    cout << "------------------------------------\n";
     for (size_t i = 0; i < p.size(); ++i) {
         cout << " " << i << "  | " << p[i] << "  |   " << m[i] << "   |   " << c[i] << "\n";
     }
@@ -259,7 +274,7 @@ void mostrarDatos(const vector<int>& p, const vector<int>& m, const vector<int>&
 
 // FUNCIONES ESTADÍSTICAS
 
-double calcularMedia(vector<int> datos) {
+double calcularMedia(const vector<int>& datos) {
     if (datos.empty()) return 0;
     double suma = 0;
     for(int valor : datos) suma += valor; // Bucle for-each
@@ -270,15 +285,16 @@ double calcularMediana(vector<int> datos) {
     if (datos.empty()) return 0;
     // Creamos una copia local (datos se pasa por valor) para ordenar sin afectar al original
     sort(datos.begin(), datos.end());
-    int n = datos.size();
+    int n = static_cast<int>(datos.size());
     if (n % 2 == 0) return (datos[n/2 - 1] + datos[n/2]) / 2.0;
     else return datos[n/2];
 }
 
-int calcularModa(vector<int> datos) {
+int calcularModa(const vector<int>& datos) {
     if (datos.empty()) return 0;
-    int moda = datos[0], maxRepeticiones = 0;
-    
+    int moda = datos[0];
+    int maxRepeticiones = 0;
+
     // Doble bucle para contar frecuencias
     for (size_t i = 0; i < datos.size(); i++) {
         int cuenta = 0;
@@ -293,7 +309,7 @@ int calcularModa(vector<int> datos) {
     return moda;
 }
 
-void analisisEstadistico(vector<int> datos, string nombre) {
+void analisisEstadistico(const vector<int>& datos, string nombre) {
     cout << "\n--- Estadisticas de " << nombre << " ---\n";
     cout << "Media (Promedio): " << calcularMedia(datos) << endl;
     cout << "Mediana (Valor central): " << calcularMediana(datos) << endl;
@@ -303,23 +319,29 @@ void analisisEstadistico(vector<int> datos, string nombre) {
 // Análisis propuesto: Calcula eficiencia (pasos/min) y cuenta días de alta intensidad
 void analisisPersonalizado(const vector<int>& p, const vector<int>& m, const vector<int>& c) {
     if (p.empty()) { cout << "No hay datos para analizar.\n"; return; }
-    
+
     double sumaEficiencia = 0;
     int diasIntensos = 0;
     double totalMinutos = 0;
+    int countEficiencia = 0;
 
-    for(size_t i = 0; i < p.size(); i++) {
+    for (size_t i = 0; i < p.size(); i++) {
         // Evitar división por cero
-        if(m[i] > 0) sumaEficiencia += (double)p[i] / m[i];
-        
+        if (m[i] > 0) {
+            sumaEficiencia += static_cast<double>(p[i]) / m[i];
+            countEficiencia++;
+        }
+
         // Condición personalizada: más de 300 calorías es un día intenso
         if (c[i] > 300) diasIntensos++;
-        
+
         totalMinutos += m[i];
     }
-    
+
+    double cadenciaProm = (countEficiencia > 0) ? (sumaEficiencia / countEficiencia) : 0.0;
+
     cout << "\n--- ANALISIS PERSONALIZADO DE SALUD ---\n";
-    cout << "1. Cadencia Promedio (Pasos por minuto): " << (sumaEficiencia / p.size()) << "\n";
+    cout << "1. Cadencia Promedio (Pasos por minuto): " << cadenciaProm << "\n";
     cout << "   (Indica la velocidad promedio de caminata)\n";
     cout << "2. Tiempo total de ejercicio acumulado: " << (totalMinutos / 60.0) << " horas\n";
     cout << "3. Dias de Alta Intensidad (>300 cal quemadas): " << diasIntensos << endl;
